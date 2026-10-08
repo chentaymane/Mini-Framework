@@ -1,610 +1,313 @@
-# Hdo
+# Hdo — documentation
 
-A tiny, dependency-free JavaScript framework for building web apps.
+Hdo is a small JavaScript framework with four features:
 
-Hdo gives you four things, and nothing more:
+| Feature              | API                                                     |
+| -------------------- | ------------------------------------------------------- |
+| DOM abstraction      | `Hdo.h()`, `Hdo.mount()`                                 |
+| State management     | `Hdo.getState()`, `Hdo.setState()`, `Hdo.subscribe()`    |
+| Routing              | `Hdo.router()`, `Hdo.navigate()`, `Hdo.match()`          |
+| Event handling       | the `on` prop, `Hdo.on()`                                |
 
-| Feature              | What it does                                                       |
-| -------------------- | ------------------------------------------------------------------ |
-| **Virtual DOM**      | Describe your UI as data (`h()`), not as strings or DOM calls.     |
-| **State management** | One shared store that any part of the app can read and update.     |
-| **Routing**          | Clean URLs that stay in sync with the store.                       |
-| **Event handling**   | A custom event API — you never touch `addEventListener` yourself.  |
-| **Loops & batching** | A `requestAnimationFrame` loop and a batched `setState` path for real-time, frame-driven apps. |
-| **Networking**       | A tiny WebSocket bridge (`connect`) that turns a host's messages into state. |
+It is a single file with no dependencies: [`hdo.js`](hdo.js).
 
-It is a **framework**, not a library: you don't drive it, it drives *you*.
-You write plain functions that describe what your screen should look like,
-and Hdo calls those functions every time your state changes.
+## Getting started
 
-## Quick start
-
-Serve the project root over HTTP (the router uses clean URLs, which browsers
-only allow over a server):
-
-```sh
-npx serve .        # or: python -m http.server 8000
-```
-
-Then include the framework and mount an app:
+Add a container and the script to an HTML page, then mount a view:
 
 ```html
+<div id="app"></div>
+
 <script src="framework/hdo.js"></script>
 <script>
   Hdo.mount(function () {
-    return Hdo.h('h1', null, 'Hello, Hdo');
+    return Hdo.h('h1', null, 'Hello world');
   }, document.getElementById('app'));
 </script>
 ```
 
-Open the page: `Hdo.mount` renders your function's result immediately, and
-re-renders it automatically after every state change. That's the whole idea:
+Open the page in a browser. You don't need a server or a build step.
+
+Hdo is a **framework, not a library**. You don't update the page yourself.
+You write a `view` function that describes the page, and Hdo calls it for
+you every time the state changes:
 
 ```
-user event ─▶ Hdo.setState(...) ─▶ store notifies Hdo.mount ─▶ your view() runs
+user action  ->  your event handler  ->  Hdo.setState()  ->  Hdo calls view()  ->  DOM updated
 ```
-
-The **view is a pure function** of the state. You never write "update this
-`div`" — you describe the whole screen, and Hdo figures out the smallest set
-of DOM changes needed.
 
 ---
 
-## 1. Creating an element
+## 1. Create an element
 
-Use `Hdo.h(tag, props, ...children)` — pronounced *hyperscript*. It returns a
-plain JS object (JSON-equivalent), not a real DOM node:
+`Hdo.h(tag, attributes, ...children)` describes an element:
 
 ```js
-Hdo.h('button', { class: 'btn' }, 'Click me');
-// → { tag: 'button', props: { class: 'btn' }, children: [ { text: 'Click me' } ], key: undefined, elm: null }
+Hdo.h('p', null, 'Hello');
 ```
 
-Because the output is plain data, an HTML document and its Hdo description
-are two spellings of the same thing:
+It does **not** create a DOM node. It returns a plain object:
+
+```js
+{ tag: 'p', props: {}, children: [ { text: 'Hello' } ] }
+```
+
+Hdo creates the real element when you pass the object to `Hdo.mount()`
+(or when it is a child of an element you mount).
+
+- `tag` is any HTML tag name: `'div'`, `'button'`, `'input'` and so on.
+- `attributes` is an object, or `null` if there are none.
+- `children` are the arguments after the attributes (see below).
+
+## 2. Add attributes to an element
+
+Pass them in the second argument. Write each name exactly as you would
+in HTML:
+
+```js
+Hdo.h('input', { type: 'text', placeholder: 'Insert Name', id: 'name' });
+Hdo.h('a', { href: '#/about', class: 'link' }, 'About');
+Hdo.h('label', { for: 'name' }, 'Name');
+Hdo.h('div', { 'data-id': 42 });
+```
+
+Some values have special rules:
+
+| Value                          | Result                                               |
+| ------------------------------ | ---------------------------------------------------- |
+| `true`                         | attribute present with no value (`disabled: true`)   |
+| `false`, `null`, `undefined`   | attribute removed                                    |
+| `value`, `checked`             | set on the input itself, so they always match the screen |
+| `style: { color: 'red' }`      | inline styles (a plain string also works)            |
+| `autofocus: true`              | the element is focused when Hdo creates it           |
+| `key`                          | not an attribute; it identifies a list item (see 3)  |
+| `on`                           | not an attribute; it holds the events (see 4)        |
+
+## 3. Nest elements
+
+Children come after the attributes. A child can be:
+
+- a string or a number, which becomes text
+- another `Hdo.h(...)`, which becomes a nested element
+- an array of children
+- `null`, `false` or `undefined`, which is skipped, so you can write conditions like `isOpen && Hdo.h(...)`
+
+This HTML from the subject:
 
 ```html
 <div class="nameSubm">
   <input type="text" placeholder="Insert Name" />
-  <input type="submit" value="Submit" />
+  <input type="submit" placeholder="Submit" />
 </div>
 ```
+
+is written like this:
 
 ```js
 Hdo.h('div', { class: 'nameSubm' }, [
   Hdo.h('input', { type: 'text', placeholder: 'Insert Name' }),
-  Hdo.h('input', { type: 'submit', value: 'Submit' })
+  Hdo.h('input', { type: 'submit', placeholder: 'Submit' })
 ]);
 ```
 
-Children can be:
-
-- **strings / numbers** — become text nodes,
-- **other vnodes** — nested elements,
-- **arrays** — flattened automatically,
-- **`null` / `false` / `undefined`** — skipped (handy for conditional parts).
-
-They are passed as trailing arguments. If you prefer, you can also put them in
-the props object as a `children` key — the value is hoisted into the vnode's
-nested `children` array (appended after any positional children) and is never
-applied to the element as an attribute:
+and the call returns the same object as the subject's JSON:
 
 ```js
-Hdo.h('div', { class: 'card', children: [Hdo.h('p', null, 'nested')] });
-// same tree as: Hdo.h('div', { class: 'card' }, Hdo.h('p', null, 'nested'))
+{
+  tag: 'div',
+  props: { class: 'nameSubm' },
+  children: [
+    { tag: 'input', props: { type: 'text', placeholder: 'Insert Name' }, children: [] },
+    { tag: 'input', props: { type: 'submit', placeholder: 'Submit' }, children: [] }
+  ]
+}
 ```
 
-> Why this matters: elements described as data can be built *before* they hit
-> the DOM, compared cheaply, and re-rendered without ever destroying things
-> that didn't change. See [*Why it works the way it does*](#7-why-it-works-the-way-it-does).
-
-## 2. Nesting elements
-
-Nesting is just passing children. The DOM tree mirrors the argument tree:
+**Lists.** When you build a list from an array, give each item a `key`.
+Use something that never changes, such as an id:
 
 ```js
-Hdo.h('div', { class: 'card' }, [
-  Hdo.h('h2', null, 'Profile'),
-  Hdo.h('p', null, [
-    'Hi, my name is ',
-    Hdo.h('strong', null, 'Hdo'),
-    '.'
-  ])
-]);
+Hdo.h('ul', null, todos.map(function (todo) {
+  return Hdo.h('li', { key: todo.id }, todo.title);
+}));
 ```
 
-renders as
+The key lets Hdo know which `<li>` is which when items are added or removed.
 
-```html
-<div class="card">
-  <h2>Profile</h2>
-  <p>Hi, my name is <strong>Hdo</strong>.</p>
-</div>
-```
+## 4. Create an event
 
-**Lists** get a special helper: a `key` prop. When the framework re-renders
-a list, it uses keys to tell two items apart, so it can move/keep an
-existing row (and its events and focus) instead of rebuilding it:
-
-```js
-todos.map(function (t) {
-  return Hdo.h('li', { key: t.id }, t.title);
-});
-```
-
-Leave `key` off for static lists; it's only needed when items are added,
-removed, or reordered.
-
-## 3. Adding attributes
-
-Any prop except `key`, `on`, and `ref` is written to the real element:
-
-| Prop                          | Becomes                                  |
-| ----------------------------- | ---------------------------------------- |
-| `class` / `className`         | the `class` attribute                    |
-| `style: 'color:red'` \| `style: { color: 'red' }` | inline styles           |
-| `htmlFor`                     | the `for` attribute (labels)             |
-| `value`, `checked`, `selected`, `disabled`, `autofocus`, … | the DOM *property* (correct for inputs/checkboxes) |
-| `hidden` and other boolean attributes | set/removed as attributes |
-| `data-*`, `aria-*`, anything else | a plain attribute                    |
-
-Changing a prop between renders updates the DOM in place (diffing, not
-rebuilding):
-
-```js
-Hdo.h('input', { type: 'checkbox', checked: todo.completed });
-```
-
-A `ref` prop is a function called with the real element once it exists —
-useful for focus:
-
-```js
-Hdo.h('input', { ref: function (el) { el.focus(); } });
-```
-
-## 4. Events
-
-Hdo has its own event layer. **You never call `addEventListener`.** (The
-framework does it internally, on your behalf.)
-
-### Declarative: the `on` prop
-
-Handlers are declared on the element, next to its attributes:
+Put the handlers in the `on` attribute. Each key is an event name:
+`click`, `input`, `keydown`, `dblclick`, `blur`, `change`, `submit`, `scroll`
+or any other DOM event. Each value is the function to call:
 
 ```js
 Hdo.h('button', {
   on: {
-    click: function () { console.log('clicked'); },
-    mouseenter: function () { console.log('hovered'); }
+    click: function (event) { console.log('clicked'); }
   }
-}, 'Press me');
-```
+}, 'Click me');
 
-Any DOM event type works: `click`, `change`, `keydown`, `dblclick`, `input`,
-`scroll`, `submit`, …
-
-### Imperative: `Hdo.listen`
-
-For events on things that aren't rendered as vnodes (the `window`, the
-`document`, …), use the command form. It returns an "unlisten" function:
-
-```js
-var stop = Hdo.listen(document, 'keydown', function (e) {
-  if (e.key === 'Escape') Hdo.setState({ menuOpen: false });
-});
-// later: stop();
-```
-
-### Custom events: `Hdo.emit`
-
-You can fire your own bubbling events and listen to them with the same API:
-
-```js
-// component A
-Hdo.emit(document, 'todo:added', { id: 1 });
-
-// component B
-Hdo.listen(document, 'todo:added', function (e) {
-  console.log('new todo:', e.detail.id);
+Hdo.h('input', {
+  on: {
+    keydown: function (event) {
+      if (event.key === 'Enter') console.log('value:', event.target.value);
+    },
+    blur: function () { console.log('left the input'); }
+  }
 });
 ```
 
-### Event handlers and state — the important rule
+The handler receives the normal browser `event`.
 
-Your handlers should **not** try to update the DOM. They read/write state:
+Some targets are not created with `h()`, such as `window` or `document`.
+For those, use `Hdo.on(target, eventName, handler)`. It returns a function
+that removes the handler:
 
 ```js
-{ click: function () { Hdo.setState({ count: Hdo.getState().count + 1 }); } }
-```
+// keybinding on the whole page
+var stop = Hdo.on(document, 'keydown', function (e) {
+  if (e.key === 'Escape') console.log('escape pressed');
+});
 
-Hdo then re-renders automatically. Handling the state, not the DOM, is the
-whole model.
+// scrolling
+Hdo.on(window, 'scroll', function () { console.log(window.scrollY); });
+
+stop(); // remove the keydown handler
+```
 
 ## 5. State management
 
-State is a plain object held by a **store** — one shared, observable source
-of truth. Any page, component, or callback can read and change it; anything
-that renders from it reacts.
-
-### The store
+Hdo has **one global state object**, so every page and every function can
+reach it.
 
 ```js
-var store = Hdo.createStore({ count: 0 });
+Hdo.setState({ count: 0, user: 'Ana' });   // set initial values
 
-store.getState();                       // -> { count: 0 }
-store.setState({ count: 1 });           // shallow-merges + notifies listeners
-store.setState(function (prev) {        // or compute from previous
-  return { count: prev.count + 1 };
-});
-store.subscribe(function (state) { ... }); // returns an unsubscribe function
+Hdo.getState().count;                      // read -> 0
+
+Hdo.setState({ count: 1 });                // update -> { count: 1, user: 'Ana' }
 ```
 
-### The global store
+`setState` **merges** the object you pass into the current state. Keys you
+leave out are kept.
 
-Since "multiple pages may need the same state," a default store exists and
-is reachable *everywhere* through tiny globals:
+Treat the state as read-only. Always change it with `setState`, never like
+this: `Hdo.getState().count = 5`. Hdo only knows the state changed when you
+call `setState`.
 
-```js
-Hdo.setState({ route: '/', user: null });   // write
-Hdo.getState();                             // read
-Hdo.subscribe(fn);                          // listen
-```
+### Mounting a view
 
-`Hdo.mount` subscribes for you: it re-renders the view after every
-`Hdo.setState`, so your screen is always a projection of the store.
-
-### A complete example
+`Hdo.mount(view, container)` calls `view()` and puts the result in
+`container`. Hdo then **calls `view()` again after every `setState`**:
 
 ```js
 Hdo.setState({ count: 0 });
 
-Hdo.mount(function () {
-  var s = Hdo.getState();
+function view() {
   return Hdo.h('div', null, [
-    Hdo.h('span', null, 'Count: ' + s.count),
+    Hdo.h('p', null, 'Count: ' + Hdo.getState().count),
     Hdo.h('button', {
-      on: { click: function () { Hdo.setState({ count: s.count + 1 }); } }
+      on: { click: function () { Hdo.setState({ count: Hdo.getState().count + 1 }); } }
     }, '+1')
   ]);
-}, document.getElementById('app'));
-```
-
-Click the button → `setState` → the store notifies the mount subscription →
-`view()` runs again → Hdo diffs the old tree vs the new tree → only the
-text "Count: N" changes in the real DOM.
-
-## 6. Rendering & the virtual DOM
-
-- `Hdo.render(vnode, container)` — mount a vnode, then patch on later calls.
-- `Hdo.mount(view, container)` — like `render`, but takes a *function* and
-  re-renders it automatically on every state change. **This is what you
-  normally use.**
-
-```js
-// one-shot:
-Hdo.render(Hdo.h('p', null, 'hi'), el);
-
-// reactive:
-Hdo.mount(function () { return Hdo.h('p', null, Hdo.getState().msg); }, el);
-```
-
-### Diffing, in one paragraph
-
-On each render Hdo compares the new tree with the previous one, walking both
-trees top-down:
-
-1. Different element type or tag → replace the node.
-2. Same tag → update only the changed attributes/properties, then recurse
-   into children.
-3. Text nodes → update only if the text changed.
-4. Lists with `key`s → reuse/match rows across reorders and insertions.
-
-The result: the browser's DOM is touched exactly where it must be — nothing
-else is destroyed, so typed input isn't lost and page flicker is avoided.
-
-## 7. Routing
-
-Routing in Hdo is just **URL ⇄ state sync**. The router watches the URL, and
-on every change writes the result into the store:
-
-```
-URL changes ─▶ Hdo writes { route, params } into state ─▶ view re-renders
-```
-
-### Setting it up
-
-```js
-Hdo.createRouter({
-  base: '/myapp',                       // where the app is served from
-  routes: {
-    '/':            'home',             // value is arbitrary - a label
-    '/user/:id':    'user',             // :param segments are supported
-    '/contact':     'contact'
-  }
-});
-```
-
-Actions on the page use the same store — nothing special needed:
-
-```js
-Hdo.navigate('/user/42');             // pushState + setState({ route, params })
-Hdo.getState().route                  // -> '/user/:id'
-Hdo.getState().params.id              // -> '42'
-```
-
-### Links
-
-Two ways to let users change the URL:
-
-```html
-<a data-link href="/myapp/contact">Contact</a>
-```
-
-Hdo intercepts `data-link` anchors, so the page never reloads even though the
-link has a real clean URL. (Real `href` + programmatic `navigate` work too.)
-
-```js
-Hdo.navigate('/contact');
-```
-
-### Handling routes
-
-Since routing is just state, you pick what to render from `state.route` — a
-single `switch` in one view function:
-
-```js
-function view() {
-  var s = Hdo.getState();
-  if (s.notFound) return Hdo.h('h2', null, '404 — not found');
-  if (s.route === '/user/:id') return Hdo.h('h2', null, 'User ' + s.params.id);
-  return Hdo.h('h2', null, 'Home');
 }
 
 Hdo.mount(view, document.getElementById('app'));
 ```
 
-### No server? It still kind of works
+### Reacting to changes yourself
 
-If you open `index.html` straight from disk (`file://`), browsers block
-`history.pushState`. Hdo detects this and falls back to hash URLs
-(`#/active`) automatically — the same URLs, just hash-prefixed.
+`Hdo.subscribe(fn)` calls `fn(state)` after every change. It returns a
+function that stops the subscription:
 
-## 8. Putting it together: the full picture
-
-```
-            ┌────────────────────────────┐
-            │        Hdo store           │  the single source of truth
-            │ { route, todos, ui, ... }  │
-            └──────┬──────────┬──────────┘
-                   │ getState │ setState
-        ┌──────────▼──┐   ┌───▼───────────┐
-        │  your view()│   │ your handlers │
-        │ (returns    │   │ (events from  │
-        │  vnode tree)│   │  on / listen) │
-        └──────────┬──┘   └───▲───────────┘
-                   │          │
-            Hdo.mount          │
-            (subscription)     │
-                   │  user events /
-                   │  router (URL) 🠚 navigate / links
-                   └──────────┘
+```js
+Hdo.subscribe(function (state) {
+  localStorage.setItem('todos', JSON.stringify(state.todos));
+});
 ```
 
-1. User acts (clicks a link, presses a key, checks a box).
-2. The handler calls `Hdo.setState` or `Hdo.navigate`.
-3. The store notifies every subscriber — including `Hdo.mount`.
-4. Your `view()` runs, returning a fresh vnode tree.
-5. Hdo diffs it against the old tree and patches only the changed parts.
+## 6. Routing
 
-You never order the framework around. You describe the screen; it keeps the
-screen true.
+The router keeps the URL and the state in sync. It uses the part of the URL
+after `#`. For example, `index.html#/active` gives the route `'/active'`.
+
+```js
+Hdo.router();   // start once; it also reads the current URL
+```
+
+From then on, **`state.route` always holds the current route**. Clicking a
+link, using the back/forward buttons or typing a URL all update it. The view
+re-renders like it does for any other state change.
+
+```js
+function view() {
+  var route = Hdo.getState().route;
+  return Hdo.h('div', null, [
+    Hdo.h('a', { href: '#/' }, 'Home'),
+    Hdo.h('a', { href: '#/about' }, 'About'),
+    route === '/about' ? Hdo.h('p', null, 'About page') : Hdo.h('p', null, 'Home page')
+  ]);
+}
+```
+
+To change the page from code, call `Hdo.navigate(route)`:
+
+```js
+Hdo.navigate('/about');
+```
+
+For routes with parameters, `Hdo.match(pattern, route)` returns the
+parameters, or `null` if the route doesn't match:
+
+```js
+Hdo.match('/user/:id', '/user/7');   // -> { id: '7' }
+Hdo.match('/user/:id', '/about');    // -> null
+```
 
 ---
 
-## API reference
+## Why things work the way they work
 
-| Function                                   | Purpose                                            |
-| ------------------------------------------ | -------------------------------------------------- |
-| `Hdo.h(tag, props?, ...children)`          | Create a vnode (element / text / nesting / attrs)  |
-| `Hdo.render(vnode, container)`             | Mount, then diff-patch on later calls              |
-| `Hdo.mount(viewFn, container, opts?)`      | Render `viewFn()` on every state change; `opts.select` limits which state changes re-render |
-| `Hdo.loop(update)`                         | Start a `requestAnimationFrame` loop; returns `{ start, stop }` |
-| `Hdo.batch(fn)`                            | Run `fn` and coalesce all its `setState` calls into one notification |
-| `Hdo.createStore(initial)`                 | New store (`getState`/`setState`/`subscribe`/`reset`) |
-| `Hdo.store`                                | The global store object                             |
-| `Hdo.getState()` / `Hdo.setState(p)` / `Hdo.subscribe(fn)` | Global store helpers          |
-| `Hdo.createRouter({ base, routes })`       | Start routing; returns router obj                  |
-| `Hdo.navigate(path)`                       | Change the URL and sync the store                  |
-| `Hdo.link(path)`                           | Full clean-URL for a route path (`/myapp/contact`) |
-| `Hdo.connect(url)`                         | WebSocket bridge: `send`, `on`, `onOpen`, `onClose`, `close`, `ready` |
-| `Hdo.listen(el, type, handler)`            | Imperative events (returns unlisten); `Hdo.on` is an alias |
-| `Hdo.emit(el, type, detail)`               | Fire a bubbling custom event                       |
-| `Hdo.version`                              | Framework version string                           |
+**Why describe elements with objects?** Objects are cheap to create and
+easy to compare. Building a whole page as objects costs almost nothing.
+Touching the real DOM is slow. So Hdo builds the objects first, then changes
+only the real nodes that differ.
 
-**Special vnode props:** `key` (list identity), `on` (event map), `ref`
-(function called with the real element).
+**How does Hdo update the page? (virtual DOM)** Hdo keeps the objects from
+the last render. After `setState`, it calls `view()` again and compares the
+new objects with the old ones:
 
-## 8. Architecture: the framework as a stack of layers
+- same tag: it keeps the element and updates only the changed attributes,
+  events and text
+- different tag: it replaces the element
+- new child: it creates it; missing child: it removes it
+- children with a `key` are matched by key, so list items keep their DOM
+  nodes when the list changes
 
-`hdo.js` is a single file, but it is organised as five layers. Every layer
-only calls downward — lower layers know nothing about the ones above, which
-keeps responsibilities clean and makes the file readable top-to-bottom:
+This is why an input you are typing in keeps its focus and text when
+something else on the page changes.
 
-```
-L4  api ........ the public Hdo facade: one object, two groups
-│   │             (imperative events, the export object)
-├─ L3  router ... URL-services (path helpers, :param matching) + the
-│   │             glue that writes { route, params } into the store
-├─ L2  store .... observable state + the global store; mount() = render + subscribe
-├─ L1  dom ...... virtual DOM (create / diff / patch) +
-│   │             the event-bindings module it uses
-└─ L0  core ..... type guards (elem/text/key), the h() vnode factory
-```
+**Why one global state?** The subject requires that "multiple pages may
+need to interact with the same state". One store that anyone can read
+(`getState`) and change (`setState`) gives that. Also, every change goes
+through `setState`, so Hdo always knows when to redraw.
 
-Each real-world feature lives in exactly one place:
+**Why the `on` attribute instead of `addEventListener`?** Events belong to
+the element description, like its other attributes. Hdo adds one listener to
+the element. When the event fires, that listener calls the function in the
+current `on` object. When the view re-renders with a new function, Hdo
+swaps the function instead of adding another listener. Handlers never pile
+up and are never called twice. You also never have to remove them yourself.
 
-- **State** → L2 (`createStore`, `store`, `mount`).
-- **DOM abstraction** → L1 + L0 (`h`, `render`, diffing, patching).
-- **Routing** → L3 (URL services + state sync).
-- **Events** → declared handlers are bound in L1's events module; the
-  imperative API (`Hdo.listen` / `Hdo.emit`) sits in L4.
+**Why routing through the state?** The route is just another piece of
+state. Your view reads `state.route` the same way it reads anything else.
+A URL change triggers a re-render like any `setState` call. The hash (`#/…`)
+is used because changing it never reloads the page. It also works when the
+file is opened directly, without a server.
 
-Read the section banner at the top of `framework/hdo.js` for the full map.
+## Examples
 
-## 9. Why it works the way it does
-
-- **The DOM is built from data.** Describing elements as plain objects keeps
-  the DOM a *projection* of your state instead of an imperative mess. It's
-  easier to reason about ("this screen equals this data"), and it makes
-  diffing possible.
-- **Diffing, not rebuilding.** Comparing the previous element tree with the
-  next one lets Hdo do the *minimum* DOM work: tweak a text node, flip a
-  class, rebind an event. That's what makes "re-render the whole app" cheap
-  enough to do on every keystroke-driven state change.
-- **Keys keep identity.** Without a stable identity, moving an item in a list
-  would look like "delete + recreate" (losing focus/state). `key` tells the
-  diff "these are the same todo, just in a new place," so DOM nodes are
-  reused and only moved.
-- **One store, everywhere.** State scattered across components breaks as an
-  app grows — two pages can't agree. A single observable store (with tiny
-  globals) is the simplest way to make state reachable from any code, which
-  is also why the router treats the URL as *another input to the store*.
-- **The URL is state.** `#/active` vs `/active` are just different spellings
-  of "show active todos". Keeping the two synced (pushState writes the store,
-  navigation reads it) means back/forward buttons, link sharing, and the
-  render pipeline all use the same path.
-- **Events are declared, not wired.** Handlers on the element (the `on` prop)
-  read naturally, survive re-renders, and — because they centralise changes
-  behind `setState` — guarantee the UI never drifts from the state.
-
-## 10. Project layout
-
-```
-mini-framework/
-├── framework/
-│   ├── hdo.js                 ← the whole framework
-│   ├── README.md              ← this document
-│   └── examples/
-│       ├── hello.html         ← elements, nesting, attributes, events
-│       ├── counter.html       ← state + events
-│       ├── pages.html         ← clean-URL routing
-│       └── loop.html          ← loop + batching + selective mounts
-├── server/                    ← the Bomberman host (Node + WebSocket)
-│   ├── index.js               ← ws server, rooms, 30 Hz broadcast loop
-│   ├── game.js                ← the game simulation
-│   └── levels.js              ← map generation
-├── game/                      ← the playable client (no build step)
-│   ├── index.html
-│   ├── css/app.css
-│   └── js/{constants,input,net,board,app}.js
-└── todomvc/
-    ├── index.html             ← TodoMVC
-    ├── css/app.css
-    └── app.js                 ← built entirely with Hdo
-```
-
-## 11. Loops — frame-driven rendering
-
-For anything that animates in real time you can't wait for a state change to
-re-render. `Hdo.loop` gives you a `requestAnimationFrame` callback that runs
-every frame, with a passed delta time (seconds, clamped so a tab switch
-doesn't cause a huge leap):
-
-```js
-var ball = { x: 0, y: 0 };
-var loop = Hdo.loop(function (dt) {
-  ball.x += 60 * dt;                    // 60 px per second, frame-rate independent
-  if (ball.x > 400) ball.x = 0;
-  Hdo.setState({ ball: { x: ball.x, y: ball.y } });
-});
-loop.stop();                            // when you don't need it any more
-loop.start();                           // restart at any time
-```
-
-`start()` and `stop()` are idempotent. Independent deduped loops share a
-single underlying rAF handler. See `framework/examples/loop.html`.
-
-## 12. Batching — many updates, one render
-
-`setState` notifies subscribers synchronously by default (backwards
-compatible). When one logical update touches the store several times, that
-means several re-renders. Wrap the update in `Hdo.batch` and every `setState`
-inside it is collected and flushed once when the callback returns:
-
-```js
-Hdo.batch(function () {
-  Hdo.setState({ connected: true });
-  Hdo.setState({ phase: 'lobby' });
-  Hdo.setState({ roster: [] });
-});                                   // subscribers notified exactly once
-```
-
-It nests safely and notifications are always flushed synchronously at the end
-of the outer batch.
-
-## 13. Selective mounts — `select`
-
-A mount can subscribe to *part* of the state instead of the whole store. Pass
-a `select(state)` function; the view re-renders only when the selected slice
-changes. The view receives the slice as its argument:
-
-```js
-Hdo.mount(function (s) {
-  return Hdo.h('div', null, 'Phase: ' + s.phase);
-}, document.getElementById('hud'), {
-  select: function (state) { return { phase: state.phase, phaseTick: state.phaseTimer }; }
-});
-```
-
-The old behaviour (every state change re-renders) is the default, so calling
-`Hdo.mount(view, el)` still works exactly as before.
-
-## 14. Networking — `Hdo.connect`
-
-A tiny WebSocket bridge that fits the same "messages become state" mental
-model. Create a connection with the host URL and use message events instead
-of writing transport code:
-
-```js
-var conn = Hdo.connect('ws://127.0.0.1:8080');
-conn.on('joined', function (p) { Hdo.setState({ playerId: p.playerId }); });
-conn.on('players', function (p) { Hdo.setState({ roster: p.roster }); });
-conn.send('input', { right: true });
-conn.close();
-```
-
-API:
-
-| Method / property | Purpose                                              |
-| ----------------- | ---------------------------------------------------- |
-| `conn.on(type, fn)`  | Register a handler for `type`; returns an unsubscribe fn |
-| `conn.onOpen(fn)` / `conn.onClose(fn)` | Connection/lifecycle callbacks (return unsubscribers) |
-| `conn.send(type, payload)` | Send a `{ type, payload }` message                 |
-| `conn.ready()`     | Whether the socket is open                            |
-| `conn.close()`     | Close the connection                                  |
-
-`Hdo.connect` is transport-only — how you respond to messages is still
-`setState` + `mount`.
-
-## 15. The multiplayer game (built on all of it)
-
-`game/` is a complete 4-player Bomberman where the whole board is drawn as
-`<div>` tiles through Hdo's virtual DOM — no `<canvas>`. It uses every
-extension in this chapter:
-
-- **`Hdo.loop`** drives the render loop. Movement is grid-locked: one
-  direction-key press = exactly one tile, so each 30 Hz snapshot (integer cell
-  coordinates) is drawn verbatim — no interpolation needed.
-- **`Hdo.batch`** groups everything the network handlers set (joined, phase,
-  roster, …) into single renders.
-- **`select`** keeps the HUD + overlays subscribing only to the small slice
-  they need, while the board keeps its own imperative, keyed tile grid.
-- **`Hdo.connect`** is the whole client network layer on top of the Node
-  host in `server/` (WebSocket, rooms of up to 4, an authoritative 30 Hz
-  simulation of movement, bombs, fire, power-ups and round scoring).
-
-Host: `npm run server` (or `PORT=9000 npm run server`). Serve the files:
-`npm run serve`, then join from `/game/` in up to four browser tabs.
-
-*Hdo was built from scratch as part of the mini-framework project. It uses no
-libraries or frameworks.*
+- [`examples/hello.html`](examples/hello.html): elements, nesting, attributes, events
+- [`examples/counter.html`](examples/counter.html): state, buttons, a keybinding
+- [`examples/pages.html`](examples/pages.html): routing with a parameter
+- [`../todomvc/`](../todomvc/): a complete TodoMVC app

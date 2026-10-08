@@ -2,60 +2,40 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Hdo · Counter (state)</title>
+  <title>Hdo - state and events</title>
   <style>
-    body { font: 15px/1.5 system-ui, sans-serif; max-width: 640px; margin: 40px auto; color: #333; padding: 0 16px; }
-    h1 { border-bottom: 2px solid #67c23a; padding-bottom: 8px; }
-    .row { display: flex; gap: 8px; margin: 16px 0; }
-    button { font: inherit; padding: 8px 14px; border-radius: 6px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
-    button:hover { background: #f5f5f5; }
-    .count { font-size: 28px; font-weight: 700; color: #303133; }
-    .history { background: #f0f9eb; padding: 12px 16px; border-radius: 6px; }
-    code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; }
+    body { font: 15px/1.5 sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
+    button { font: inherit; padding: 6px 14px; margin-right: 6px; }
+    .count { font-size: 32px; font-weight: bold; }
   </style>
 </head>
 <body>
-  <h1>Hdo — state management + events</h1>
-  <p>
-    The buttons use the <code>on</code> prop (<code>on: { click: ... }</code>) instead of
-    <code>addEventListener</code>. Every click calls <code>Hdo.setState()</code>, which is
-    the single source of truth — <code>Hdo.mount()</code> re-renders the view automatically.
-  </p>
-
+  <h1>State and events</h1>
+  <p>Click the buttons, or press <kbd>+</kbd> / <kbd>-</kbd> on the keyboard.</p>
   <div id="app"></div>
 
   <script src="../hdo.js"></script>
   <script>
-    // The global store starts here. Any code can read the same state.
-    Hdo.setState({ count: 0, history: [] });
+    var h = Hdo.h;
 
-    function add(step) {
-      var s = Hdo.getState();
-      Hdo.setState({
-        count: s.count + step,
-        history: [s.count + step].concat(s.history).slice(0, 6)
-      });
+    Hdo.setState({ count: 0 });
+
+    function add(n) {
+      Hdo.setState({ count: Hdo.getState().count + n });
     }
 
-    // Hdo.listen() is the imperative event API (vs the declarative "on" prop).
-    // Here: press "a" anywhere in the page to increment.
-    Hdo.listen(document, 'keydown', function (e) {
-      if (e.key === 'a' || e.key === 'A') add(1);
+    // a keybinding on the whole page
+    Hdo.on(document, 'keydown', function (e) {
+      if (e.key === '+') add(1);
+      if (e.key === '-') add(-1);
     });
 
     Hdo.mount(function () {
-      var s = Hdo.getState();
-      return Hdo.h('div', null, [
-        Hdo.h('div', { class: 'row' }, [
-          Hdo.h('button', { on: { click: function () { add(-1); } } }, '-1'),
-          Hdo.h('button', { on: { click: function () { add(1); } } }, '+1'),
-          Hdo.h('button', { on: { click: function () { Hdo.setState({ count: 0 }); } } }, 'Reset')
-        ]),
-        Hdo.h('div', { class: 'count' }, 'Count: ' + s.count),
-        Hdo.h('div', { class: 'history' }, s.history.length
-          ? 'Last values: ' + s.history.join(', ')
-          : 'No history yet—click a button.')
+      return h('div', null, [
+        h('p', { class: 'count' }, Hdo.getState().count),
+        h('button', { on: { click: function () { add(-1); } } }, '-1'),
+        h('button', { on: { click: function () { add(1); } } }, '+1'),
+        h('button', { on: { click: function () { Hdo.setState({ count: 0 }); } } }, 'Reset')
       ]);
     }, document.getElementById('app'));
   </script>
