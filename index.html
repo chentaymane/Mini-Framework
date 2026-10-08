@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hdo — a tiny framework</title>
+  <style>
+    body { font: 16px/1.6 system-ui, -apple-system, sans-serif; background: #f5f5f5; color: #333; margin: 0; }
+    .wrap { max-width: 720px; margin: 48px auto; padding: 0 20px; }
+    header h1 { font-size: 56px; margin: 0; letter-spacing: -1px; }
+    header p { color: #666; margin-top: 4px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 24px; }
+    .card { display: block; background: #fff; border-radius: 10px; padding: 20px; text-decoration: none; color: #333;
+            box-shadow: 0 1px 3px rgba(0,0,0,.12); transition: transform .12s ease, box-shadow .12s ease; }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,.14); }
+    .card h2 { margin: 0 0 6px; font-size: 20px; }
+    .card .tag { font-size: 13px; color: #8792a2; text-transform: uppercase; letter-spacing: .04em; }
+    .card p { margin: 8px 0 0; font-size: 14px; color: #555; }
+    code { background: #e8e8e8; padding: 2px 6px; border-radius: 4px; font-size: .9em; }
+    .steps { background: #fff; border-radius: 10px; padding: 20px 24px; margin-top: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+    .steps pre { background: #282c34; color: #abb2bf; padding: 14px 16px; border-radius: 8px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <!-- This landing page is itself built with Hdo. -->
+  <div id="app"></div>
+  <script src="framework/hdo.js"></script>
+  <script>
+    var card = function (href, tag, title, desc) {
+      return Hdo.h('a', { class: 'card', href: href }, [
+        Hdo.h('span', { class: 'tag' }, tag),
+        Hdo.h('h2', null, title),
+        Hdo.h('p', null, desc)
+      ]);
+    };
+
+    Hdo.mount(function () {
+      return Hdo.h('div', { class: 'wrap' }, [
+        Hdo.h('header', null, [
+          Hdo.h('h1', null, 'Hdo'),
+          Hdo.h('p', null, 'A tiny, dependency-free JavaScript framework: virtual DOM, state management, clean-URL routing, and a custom event API.')
+        ]),
+        Hdo.h('div', { class: 'grid' }, [
+          card('/todomvc/', 'Full app', 'TodoMVC', 'A complete todomvc.com clone built entirely with Hdo.'),
+          card('/game/', 'Game', 'Bomberman (4 players)', 'A multiplayer Bomberman: entire board drawn with the virtual DOM, host simulation over WebSocket.'),
+          card('/framework/examples/hello.html', 'Example', 'Elements & events', 'Create, nest, and style elements; bind events with the "on" prop.'),
+          card('/framework/examples/counter.html', 'Example', 'State', 'Buttons driving one shared store; auto re-render.'),
+          card('/framework/examples/pages.html', 'Example', 'Routing', 'Clean URLs synced with state, with a :param route.'),
+          card('/framework/README.md', 'Docs', 'Framework documentation', 'How Hdo works and how to use it, with code examples.')
+        ]),
+        Hdo.h('div', { class: 'steps' }, [
+          Hdo.h('h2', null, 'Run it'),
+          Hdo.h('p', null, 'Serve this folder over HTTP (the router uses clean URLs):'),
+          Hdo.h('pre', null, 'npx serve .            # or: python -m http.server 8000'),
+          Hdo.h('p', null, 'Then open ',
+            Hdo.h('code', null, 'http://localhost:3000'),
+            ' (or :8000) and follow the links above.')
+        ])
+      ]);
+    }, document.getElementById('app'));
+  </script>
+</body>
+</html>

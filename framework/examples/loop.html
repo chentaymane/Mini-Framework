@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hdo — loop &amp; batch demo</title>
+  <style>
+    body { font: 16px/1.5 system-ui, sans-serif; max-width: 640px; margin: 40px auto; color: #222; }
+    .stage { position: relative; width: 480px; height: 240px; border-radius: 12px;
+      background: radial-gradient(circle at 30% 20%, #2a3a55, #151d2b);
+      overflow: hidden; margin-top: 12px; }
+    .ball { position: absolute; width: 24px; height: 24px; border-radius: 50%;
+      background: linear-gradient(135deg, #7cffb2, #1fb07a); box-shadow: 0 0 14px #1fb07a; }
+    .hud { position: absolute; top: 8px; left: 10px; right: 10px; display: flex;
+      justify-content: space-between; color: #9fb6d4; font: 12px/1.4 ui-monospace, monospace; }
+    .controls { display: flex; gap: 16px; align-items: center; margin-top: 16px; }
+    button { font: inherit; padding: 6px 14px; border-radius: 8px; border: 1px solid #2a3a55;
+      background: #2a3a55; color: #eef4ff; cursor: pointer; }
+    button:hover { background: #35507a; }
+    .triggers { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+    code { background: #eef2f8; padding: 1px 5px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Hdo.loop / Hdo.batch</h1>
+  <p>One <code>Hdo.loop()</code> drives the render loop. Every frame the ball
+     position is written to the store with <code>Hdo.batch()</code>, so the
+     game store notifies <strong>once per frame</strong> — the HUD (mounted with
+     a <code>select</code>) and the board both see one cheap re-render.</p>
+  <div id="stage"></div>
+  <p>HUD subscribes to <code>{ fps, playing }</code> only; spam the buttons below
+     (they set <code>bumps</code>, which the HUD ignores) and the HUD text stays still.</p>
+
+  <p id="hud">HUD goes here</p>
+
+  <div class="controls">
+    <div class="triggers">
+      <button id="bump">+10 bumps (ignored by HUD)</button>
+      <button id="reset">reset bumps</button>
+    </div>
+  </div>
+
+  <script src="../hdo.js"></script>
+  <script>
+    // Global store: game state + unrelated application state.
+    Hdo.setState({
+      x: 20, y: 20, vx: 180, vy: 120,  // ball (changes every frame)
+      bumps: 0,                         // app junk (changes on button)
+      playing: true
+    });
+
+    // --- board: whole stage drawn every frame from loop ---
+    function ballView() {
+      var s = Hdo.getState();
+      return Hdo.h('div', { class: 'stage' }, [
+        Hdo.h('div', { key: 'ball', class: 'ball',
+          style: { left: s.x + 'px', top: s.y + 'px' } })
+      ]);
+    }
+    Hdo.mount(ballView, document.getElementById('stage'));
+
+    // --- HUD: only re-renders when fps/playing change, NOT on bumps ---
+    function hudView() {
+      var s = Hdo.getState();
+      return Hdo.h('span', null, 'fps ' + s.fps + ' · playing: ' + s.playing);
+    }
+    Hdo.mount(hudView, document.getElementById('hud'),
+      { select: function (s) { return { fps: s.fps, playing: s.playing }; } });
+
+    // --- game loop: move ball, bounce off walls, update fps ---
+    var smoothFps = 0;
+    var fpsCounter = 0;
+    var fpsTimer = 0;
+    var W = 480, H = 240, SIZE = 24;
+
+    Hdo.loop(function (dt, t) {
+      Hdo.batch(function () {
+        var s = Hdo.getState();
+        var x = s.x + s.vx * dt;
+        var y = s.y + s.vy * dt;
+        var vx = s.vx, vy = s.vy;
+        if (x <= 0) { x = 0; vx = Math.abs(vx); }
+        if (x >= W - SIZE) { x = W - SIZE; vx = -Math.abs(vx); }
+        if (y <= 0) { y = 0; vy = Math.abs(vy); }
+        if (y >= H - SIZE) { y = H - SIZE; vy = -Math.abs(vy); }
+        fpsCounter++;
+        fpsTimer += dt;
+        if (fpsTimer >= 1) { smoothFps = fpsCounter; fpsCounter = 0; fpsTimer = 0; }
+        Hdo.setState({ x: x, y: y, vx: vx, vy: vy, fps: smoothFps });
+      });
+    });
+
+    document.getElementById('bump')
+      .addEventListener('click', function () {
+        Hdo.setState({ bumps: Hdo.getState().bumps + 10 });
+      });
+    document.getElementById('reset')
+      .addEventListener('click', function () { Hdo.setState({ bumps: 0 }); });
+  </script>
+</body>
+</html>

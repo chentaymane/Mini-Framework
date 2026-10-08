@@ -1,0 +1,17 @@
+{
+  "name": "mini-framework",
+  "version": "1.0.0",
+  "description": "Hdo — a tiny JavaScript framework (virtual DOM, state, routing, events, loops, networking) with a TodoMVC app and a multiplayer Bomberman game.",
+  "private": true,
+  "scripts": {
+    "serve": "npx --yes serve .",
+    "server": "node server/index.js",
+    "test": "node tests/run.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1"
+  }
+}

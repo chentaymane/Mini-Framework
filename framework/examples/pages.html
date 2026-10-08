@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hdo · Routing</title>
+  <style>
+    body { font: 15px/1.6 system-ui, sans-serif; max-width: 640px; margin: 40px auto; color: #333; padding: 0 16px; }
+    h1 { border-bottom: 2px solid #409eff; padding-bottom: 8px; }
+    nav ul { display: flex; gap: 8px; list-style: none; padding: 0; }
+    nav a { text-decoration: none; padding: 6px 12px; border: 1px solid #ccc; border-radius: 6px; color: #409eff; }
+    nav a.active { background: #409eff; color: #fff; border-color: #409eff; }
+    .page { padding: 16px; border-radius: 8px; background: #ecf5ff; }
+    .sync { font-size: 13px; color: #909399; }
+    code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Hdo — routing with clean URLs</h1>
+  <p>
+    The URL and the state stay in sync. Click a link (they are plain
+    <code>&lt;a data-link&gt;</code> anchors), and the framework
+    <code>pushState</code>es the new clean URL, then writes
+    <code>{ route, params }</code> into the store — the view re-renders.
+  </p>
+
+  <div id="app"></div>
+
+  <script src="../hdo.js"></script>
+  <script>
+    // The base is the folder this page lives in, so routing keeps
+    // working no matter where the project is served from.
+    var base = location.pathname.replace(/[^/]*$/, '').replace(/\/+$/, '') || '';
+
+    Hdo.createRouter({
+      base: base,
+      routes: {
+        '/': 'home',
+        '/user/:id': 'user',
+        '/contact': 'contact'
+      }
+    });
+
+    // This file isn't served at the base URL, so the first load is a
+    // "page file" rather than a known route. Redirect to home (this
+    // also shows what the 404 branch looks like for unknown routes).
+    if (Hdo.getState().notFound) Hdo.navigate('/');
+
+    function page(title) {
+      var s = Hdo.getState();
+      return Hdo.h('div', null, [
+        Hdo.h('nav', null, Hdo.h('ul', null, [
+          Hdo.h('li', null, Hdo.h('a', { 'data-link': true, href: base + '/', class: s.route === '/' ? 'active' : '' }, 'Home')),
+          Hdo.h('li', null, Hdo.h('a', { 'data-link': true, href: base + '/user/7', class: s.route === '/user/:id' ? 'active' : '' }, 'User 7')),
+          Hdo.h('li', null, Hdo.h('a', { 'data-link': true, href: base + '/contact', class: s.route === '/contact' ? 'active' : '' }, 'Contact'))
+        ])),
+        Hdo.h('div', { class: 'page' }, [
+          Hdo.h('h2', null, title),
+          Hdo.h('p', { class: 'sync' }, 'state.route = "' + s.route + '" · state.params = ' +
+            JSON.stringify(s.params) + ' · URL = ' + location.pathname + location.search + location.hash)
+        ])
+      ]);
+    }
+
+    function view() {
+      var s = Hdo.getState();
+      if (s.notFound) return page('404 — not found');
+      switch (s.route) {
+        case '/': return page('Home');
+        case '/user/:id': return page('User #' + (s.params.id || '?') + ' (param from URL)');
+        case '/contact': return page('Contact');
+        default: return page('Route: ' + s.route);
+      }
+    }
+
+    Hdo.mount(view, document.getElementById('app'));
+  </script>
+</body>
+</html>

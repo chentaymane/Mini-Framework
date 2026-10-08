@@ -1,0 +1,64 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hdo Â· Hello, DOM</title>
+  <style>
+    body { font: 15px/1.5 system-ui, sans-serif; max-width: 640px; margin: 40px auto; color: #333; padding: 0 16px; }
+    h1 { border-bottom: 2px solid #e6a23c; padding-bottom: 8px; }
+    blockquote { border-left: 4px solid #e6a23c; margin: 16px 0; padding: 8px 16px; background: #fdf6ec; }
+    code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; }
+    .status { color: #0a7d33; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>Hdo â€” hello, DOM</h1>
+  <p>
+    Everything below is created and updated by the <code>Hdo</code> framework:
+    elements, attributes, nesting, and events. No <code>document.createElement</code>
+    or <code>addEventListener</code> in the app code.
+  </p>
+
+  <div id="app"></div>
+
+  <script src="../hdo.js"></script>
+  <script>
+    // 0. Initialize the count in the global store.
+    Hdo.setState({ count: 0 });
+
+    // 1. Create a button with an attribute and an event.
+    var button = Hdo.h('button', {
+      class: 'hello-btn',
+      on: { click: function () { Hdo.setState({ count: Hdo.getState().count + 1 }); } }
+    }, 'You clicked me');
+
+    // 2. Nest elements: the input from the "DOM as a big object" example.
+    var nameForm = Hdo.h('div', { class: 'nameSubm' }, [
+      Hdo.h('input', { type: 'text', placeholder: 'Insert Name' }),
+      Hdo.h('input', { type: 'submit', value: 'Submit' })
+    ]);
+
+    // 3. A status line that reacts to state changes.
+    var statusEl = function () {
+      var n = Hdo.getState().count;
+      return Hdo.h('p', { class: 'status' }, 'Click count: ' + n + (n === 1 ? ' time' : ' times'));
+    };
+
+    // The whole view. Hdo.mount() renders it now AND re-renders it
+    // after every Hdo.setState({ ... }).
+    Hdo.mount(function () {
+      return Hdo.h('div', null, [
+        nameForm,
+        button,
+        statusEl(),
+        Hdo.h('blockquote', null, [
+          'The two input elements above map to exactly the JSON structure from the assignment: a ',
+          Hdo.h('code', null, 'div.nameSubm'),
+          ' with two children.'
+        ])
+      ]);
+    }, document.getElementById('app'));
+  </script>
+</body>
+</html>
