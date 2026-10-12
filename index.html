@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mini Framework</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 16px; }
+    button { font-size: 18px; padding: 4px 14px; }
+  </style>
+</head>
+<body>
+  <h1>Mini Framework</h1>
+  <ul>
+    <li><a href="todomvc/">TodoMVC app</a></li>
+    <li><a href="README.md">Documentation (README)</a></li>
+  </ul>
+
+  <h2>Counter demo</h2>
+  <div id="app"></div>
+
+  <script type="module">
+    import { h, mount, createStore } from "./framework/index.js";
+
+    const store = createStore({ count: 0 });
+    const view = s => h("div", {},
+      h("p", {}, `Count: ${s.count}`),
+      h("button", { onClick: () => store.setState({ count: s.count - 1 }) }, "-"),
+      " ",
+      h("button", { onClick: () => store.setState({ count: s.count + 1 }) }, "+")
+    );
+    mount(view, document.getElementById("app"), store);
+  </script>
+</body>
+</html>
