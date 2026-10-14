@@ -18,7 +18,7 @@ export function addTodo(title) {
   if (!title) return;
   store.setState(s => {
     const id = Math.max(0, ...s.todos.map(t => t.id)) + 1;
-    return { todos: [...s.todos, { id, title, completed: false }] };
+    return { todos: [{ id, title, completed: false }, ...s.todos] };
   });
 }
 
