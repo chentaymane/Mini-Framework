@@ -35,7 +35,7 @@ framework/           state, routing, events and DOM abstraction
 todomvc/             TodoMVC app built with the framework
   index.html         page
   style.css          official TodoMVC styles
-  actions.js         store, localStorage, actions (add, toggle, edit...)
+  actions.js         store, actions (add, toggle, edit...)
   view.js            the TodoMVC UI (header, list, footer)
   app.js             entry point: router + mount
 index.html           counter demo and links
