@@ -1,12 +1,7 @@
 import { createStore } from "../framework/index.js";
 
-const STORAGE_KEY = "todos-mini-framework";
-
 // ---------- state ----------
-const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-export const store = createStore({ todos: saved, route: "/", editingId: null });
-
-store.subscribe(state => localStorage.setItem(STORAGE_KEY, JSON.stringify(state.todos)));
+export const store = createStore({ todos: [], route: "/", editingId: null });
 
 // ---------- actions ----------
 export function setRoute(route) {
