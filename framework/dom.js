@@ -120,12 +120,29 @@ function patchKeyed(el, o, n) {
 // view can return one node or an array of nodes.
 export function mount(view, root, store) {
   let oldNodes = [];
-  const update = () => {
-    const newNodes = [view(store.getState())].flat(Infinity).filter(n => n != null && n !== false && n !== true);
-    for (let i = 0; i < newNodes.length; i++) patch(root, oldNodes[i], newNodes[i], i);
-    for (let i = oldNodes.length - 1; i >= newNodes.length; i--) root.removeChild(root.childNodes[i]);
-    oldNodes = newNodes;
+
+  const render = () => [view(store.getState())].flat(Infinity).filter(n => n != null && n !== false && n !== true);
+
+  // Wipe the root and build every node from scratch.
+  const fullRender = newNodes => {
+    while (root.firstChild) root.removeChild(root.firstChild);
+    newNodes.forEach(n => root.appendChild(createElement(n)));
+    return newNodes;
   };
+
+  const update = () => {
+    const newNodes = render();
+    try {
+      for (let i = 0; i < newNodes.length; i++) patch(root, oldNodes[i], newNodes[i], i);
+      for (let i = oldNodes.length - 1; i >= newNodes.length; i--) root.removeChild(root.childNodes[i]);
+      oldNodes = newNodes;
+    } catch (err) {
+      // Real DOM no longer matches what the diff expects (edited directly).
+      console.warn("mini-framework: patch failed, re-rendering from scratch", err);
+      oldNodes = fullRender(newNodes);
+    }
+  };
+
   store.subscribe(update);
   update();
 }
