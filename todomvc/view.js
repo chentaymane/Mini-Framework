@@ -48,6 +48,7 @@ export function view(state) {
   const active = todos.filter(t => !t.completed);
   const completed = todos.filter(t => t.completed);
   const visible = route === "/active" ? active : route === "/completed" ? completed : todos;
+  const allCompleted = todos.length > 0 && todos.every(t => t.completed);
 
   return [
     h("header", { class: "header", "data-testid": "header" },
@@ -73,8 +74,8 @@ export function view(state) {
           id: "toggle-all",
           "data-testid": "toggle-all",
           type: "checkbox",
-          checked: visible.length > 0 && visible.every(t => t.completed),
-          onChange: e => toggleAll(e.target.checked),
+          checked: allCompleted,
+          onChange: () => toggleAll(!allCompleted),
         }),
         h("label", { class: "toggle-all-label", for: "toggle-all" }, "Toggle All Input")
       ),
