@@ -124,7 +124,13 @@ const store = createStore({ count: 0 });
 store.getState();                                   // { count: 0 }
 store.setState({ count: 5 });                       // merge an object
 store.setState(s => ({ count: s.count + 1 }));      // or use a function of the old state
-const unsubscribe = store.subscribe(state => console.log(state));
+
+const log = state => console.log(state);
+store.subscribe(log);                               // start listening to changes
+store.unsubscribe(log);                             // stop listening
+
+const stop = store.subscribe(log);                  // subscribe also returns a stop function
+stop();                                             // same as store.unsubscribe(log)
 ```
 
 ### Rendering: `mount`
